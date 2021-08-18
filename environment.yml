@@ -1,0 +1,7 @@
+name: laminate
+dependencies:
+  - python=3.8
+  - shapely
+  - pip
+  - pip:
+    - foldable_robotics
