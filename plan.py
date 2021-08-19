@@ -86,7 +86,7 @@ def device(comps_poly,comps_circle,joints,layers_comp):
     # TODO: Clean unnecessary adhesive
     return device, joints_cut, bodies_cut
 
-def cuts(device,jig_diameter=5,jig_hole_spacing=20):
+def cuts(device,jig_diameter=5,jig_hole_spacing=20, support_width=None):
     num_layers = len(device)
     is_adhesive = [i%2 == 1 for i in range(num_layers)] # assume alternative adhesive
 
@@ -112,9 +112,10 @@ def cuts(device,jig_diameter=5,jig_hole_spacing=20):
     jig_holes=jig_holes.to_laminate(num_layers)
 
     # Identify removable scrap
+    if support_width is None: support_width = CUT_THICKNESS
     all_scrap = sheet-device
-    removable_scrap_up = all_scrap-(mfg.not_removable_up(device,is_adhesive)<<CUT_THICKNESS)
-    removable_scrap_down = all_scrap-(mfg.not_removable_down(device,is_adhesive)<<CUT_THICKNESS)
+    removable_scrap_up = all_scrap-(mfg.not_removable_up(device,is_adhesive)<<support_width)
+    removable_scrap_down = all_scrap-(mfg.not_removable_down(device,is_adhesive)<<support_width)
 
     # BUG: Bug details of not_removable_up/down algorithm are below.
     # If a part is adhered partly to the non-adhesive layers, it is still recognized as removable.
@@ -130,7 +131,8 @@ def cuts(device,jig_diameter=5,jig_hole_spacing=20):
     keepout =  mfg.keepout_laser(device) # Keepout region that laser should never cut
     release_cut_scrap = sheet-keepout
     layers_cut_scrap = mfg.cleanup(sheet-device-release_cut_scrap,0.001)
-    support = mfg.support(device,mfg.keepout_laser,CUT_THICKNESS,0) # No clearance needed because cut already has thickness
+    # If last argument invalid_width is not 0, release cut won't touch the non cuttable parts.
+    support = mfg.support(device,mfg.keepout_laser,support_width,0 if support_width is None else support_width/2)
     supported_device = web|device|support
 
     # removable_scrap_up.plot_layers()
