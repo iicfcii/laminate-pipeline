@@ -86,12 +86,35 @@ def device(comps_poly,comps_circle,joints,layers_comp):
     # TODO: Clean unnecessary adhesive
     return device, joints_cut, bodies_cut
 
-def cuts(device,jig_diameter=5,jig_hole_spacing=20, support_width=None):
+def not_web_material(laminate,up):
+    num_layers = len(laminate)
+    is_adhesive = [i%2 == 1 for i in range(num_layers)] # Assume alternative adhesive and first and last are not adhesive
+
+    start = num_layers-1 if up else 0
+    end = -1 if up else num_layers
+    step = -1 if up else 1
+    not_web_material = [laminate[start]]
+    for i in range(start+step,end,step):
+        not_web_material.append(laminate[i] | not_web_material[-1])
+    not_web_material = Laminate(*not_web_material)
+    not_web_material = not_web_material[::step]
+
+    # Adhesive above/below other layers cannot be used as web
+    for i in range(start,end,step):
+        if is_adhesive[i]:
+            not_web_material[i] |= not_web_material[i+step]
+
+    # not_web_material.plot_layers()
+    # plt.show(block=True)
+
+    return not_web_material
+
+def cuts(device,jig_diameter=5,jig_hole_spacing=20, clearance=1):
+    assert clearance > CUT_THICKNESS
     num_layers = len(device)
     is_adhesive = [i%2 == 1 for i in range(num_layers)] # assume alternative adhesive
 
     # Build jigholes and sheet
-    # TODO: Default shapely buffer join_style to mitre
     device_bb = (mfg.unary_union(device)<<jig_hole_spacing/2).bounding_box()
     w,h = device_bb.get_dimensions()
     w = round(w/jig_hole_spacing)*jig_hole_spacing
@@ -111,35 +134,22 @@ def cuts(device,jig_diameter=5,jig_hole_spacing=20, support_width=None):
     sheet=sheet.to_laminate(num_layers)
     jig_holes=jig_holes.to_laminate(num_layers)
 
-    # Identify removable scrap
-    if support_width is None: support_width = CUT_THICKNESS
+    # Identify material for web
     all_scrap = sheet-device
-    removable_scrap_up = all_scrap-(mfg.not_removable_up(device,is_adhesive)<<support_width)
-    removable_scrap_down = all_scrap-(mfg.not_removable_down(device,is_adhesive)<<support_width)
+    web_material_up = all_scrap-(not_web_material(device,True)<<clearance)
+    web_material_down = all_scrap-(not_web_material(device,False)<<clearance)
+    web_material = web_material_up|web_material_down
 
-    # BUG: Bug details of not_removable_up/down algorithm are below.
-    # If a part is adhered partly to the non-adhesive layers, it is still recognized as removable.
-
-    # HACK: Manuanlly remove the part to generate correct cut files
-    # patch = Layer(sg.Polygon([(-24,7.5),(-24,-7.5),(0,-7.5),(0,7.5)]))
-    # removable_scrap_up[3] = removable_scrap_up[3]-patch<<0.1
-    # removable_scrap_up.plot_layers()
-    # plt.show(block=True)
-    removable_scrap = removable_scrap_up|removable_scrap_down
-
-    web = removable_scrap-jig_holes # Web that holds the device before release cut
+    web = web_material-jig_holes # Web that holds the device before release cut
     keepout =  mfg.keepout_laser(device) # Keepout region that laser should never cut
     release_cut_scrap = sheet-keepout
-    layers_cut_scrap = mfg.cleanup(sheet-device-release_cut_scrap,0.001)
-    # If last argument invalid_width is not 0, release cut won't touch the non cuttable parts.
-    support = mfg.support(device,mfg.keepout_laser,support_width,0 if support_width is None else support_width/2)
+    support = mfg.support(device,mfg.keepout_laser,clearance,0)
     supported_device = web|device|support
 
-    # removable_scrap_up.plot_layers()
-    # device.plot_layers()
-    # keepout.plot_layers()
+    # TODO: Allow cleanup with shapely buffer join_style setting to mitre
+    supported_device = mfg.cleanup(supported_device,CUT_THICKNESS)
+
     # support.plot_layers()
-    # web.plot_layers()
     supported_device.plot_layers()
     release_cut_scrap.plot(new=True)
     plt.show(block=True)
@@ -152,12 +162,5 @@ def cuts(device,jig_diameter=5,jig_hole_spacing=20, support_width=None):
         layers_cut |= supported_device[i].translate(0,(h+10)*i)
 
     release_cut = release_cut_scrap[0]
-
-    # TODO: Convert thin polygons into lines
-    # In each polygon, go over all the lines
-    # If shorter or equal to cut thickness, remove
-    # Else find the cloeset and parallel line,
-    # remove the shorter one of the pair
-    # translate the longer one so that it is in between the pair
 
     return layers_cut, release_cut
