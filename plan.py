@@ -10,6 +10,7 @@ import joint
 
 SMALL_DIM = 0.001
 CUT_THICKNESS = 0.1
+CIRCLE_RESOLUTION = 5
 
 def device(comps_poly,comps_circle,joints,layers_comp):
     # Construct device
@@ -21,7 +22,7 @@ def device(comps_poly,comps_circle,joints,layers_comp):
                  # TODO: Add logic to determine outer poly with bounding box
                 layer |= sg.Polygon(p)
             for circle in comps_circle[comp][l]:
-                layer ^= sg.Point(list(circle[0])[0:2]).buffer(circle[1]) # circles are cutout
+                layer ^= sg.Point(list(circle[0])[0:2]).buffer(circle[1],resolution=CIRCLE_RESOLUTION) # circles are cutout
 
         # Merge touching bodies
         layer = Layer(layer)
@@ -89,10 +90,12 @@ def device(comps_poly,comps_circle,joints,layers_comp):
 def not_web_material(laminate,up):
     num_layers = len(laminate)
     is_adhesive = [i%2 == 1 for i in range(num_layers)] # Assume alternative adhesive and first and last are not adhesive
-
     start = num_layers-1 if up else 0
     end = -1 if up else num_layers
     step = -1 if up else 1
+
+    # Proejct layer one by one to form a laminate that can not be used as web material.
+    # Web material needs to be removable from above or below.
     not_web_material = [laminate[start]]
     for i in range(start+step,end,step):
         not_web_material.append(laminate[i] | not_web_material[-1])
@@ -109,8 +112,37 @@ def not_web_material(laminate,up):
 
     return not_web_material
 
+def jig_holes(x,y,w,h,jig_diameter,num_layers):
+    points = [] # jig holes
+    points.append(sg.Point(x-w/2,y-h/2).buffer(jig_diameter/2,resolution=CIRCLE_RESOLUTION))
+    points.append(sg.Point(x-w/2,y+h/2).buffer(jig_diameter/2,resolution=CIRCLE_RESOLUTION))
+    points.append(sg.Point(x+w/2,y-h/2).buffer(jig_diameter/2,resolution=CIRCLE_RESOLUTION))
+    points.append(sg.Point(x+w/2,y+h/2).buffer(jig_diameter/2,resolution=CIRCLE_RESOLUTION))
+    points = Layer(*points)
+    points = points.to_laminate(num_layers)
+
+    return points
+
+def labels(x,y,w,h,jig_diameter,num_layers,thickness=0.2,gap=2):
+    lines = []
+    for i in range(num_layers):
+        ls = Layer()
+        for j in range(i+1):
+            xl = x+j*(thickness+gap)
+            l = sg.LineString([
+                (xl,y-h/2-jig_diameter/2+thickness/2),
+                (xl,y-h/2+jig_diameter/2-thickness/2)
+            ])
+            l = l.buffer(thickness/2,cap_style=sg.CAP_STYLE.square)
+            ls |= Layer(l)
+        lines.append(ls)
+    lines = Laminate(*lines)
+
+    return lines
+
+
 def cuts(device,jig_diameter=5,jig_hole_spacing=20, clearance=1):
-    assert clearance > CUT_THICKNESS
+    assert clearance > 0
     num_layers = len(device)
     is_adhesive = [i%2 == 1 for i in range(num_layers)] # assume alternative adhesive
 
@@ -122,17 +154,12 @@ def cuts(device,jig_diameter=5,jig_hole_spacing=20, clearance=1):
 
     (x1,y1),(x2,y2) = device_bb.bounding_box_coords()
     xc,yc = ((x2+x1)/2,(y2+y1)/2)
-    points = [] # jig holes
-    points.append(sg.Point(xc-w/2,yc-h/2))
-    points.append(sg.Point(xc-w/2,yc+h/2))
-    points.append(sg.Point(xc+w/2,yc-h/2))
-    points.append(sg.Point(xc+w/2,yc+h/2))
-    jig_holes = Layer(*points)
-    jig_holes <<= jig_diameter/2
 
-    sheet = (jig_holes<<jig_diameter).bounding_box()
+    holes = jig_holes(xc,yc,w,h,jig_diameter,num_layers)
+    lines = labels(xc,yc,w,h,jig_diameter,num_layers)
+
+    sheet = (holes[0]<<jig_diameter).bounding_box()
     sheet=sheet.to_laminate(num_layers)
-    jig_holes=jig_holes.to_laminate(num_layers)
 
     # Identify material for web
     all_scrap = sheet-device
@@ -140,14 +167,12 @@ def cuts(device,jig_diameter=5,jig_hole_spacing=20, clearance=1):
     web_material_down = all_scrap-(not_web_material(device,False)<<clearance)
     web_material = web_material_up|web_material_down
 
-    web = web_material-jig_holes # Web that holds the device before release cut
+    web = web_material-holes-lines # Web that holds the device before release cut
     keepout =  mfg.keepout_laser(device) # Keepout region that laser should never cut
     release_cut_scrap = sheet-keepout
     support = mfg.support(device,mfg.keepout_laser,clearance,0)
+    # IDEA: Support can be within the keepout region if it is part of the web maeterial
     supported_device = web|device|support
-
-    # TODO: Allow cleanup with shapely buffer join_style setting to mitre
-    supported_device = mfg.cleanup(supported_device,CUT_THICKNESS)
 
     # support.plot_layers()
     supported_device.plot_layers()
