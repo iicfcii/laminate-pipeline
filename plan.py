@@ -102,9 +102,12 @@ def not_web_material(laminate,up):
     not_web_material = Laminate(*not_web_material)
     not_web_material = not_web_material[::step]
 
-    # Adhesive above/below other layers cannot be used as web
-    for i in range(start,end,step):
+    for i in range(start,end-step,step):
+        # Adhesive above/below other material cannot be used as web
         if is_adhesive[i]:
+            not_web_material[i] |= not_web_material[i+step]
+        # Material above/below adhesive cannot be used as web
+        if is_adhesive[i+step]:
             not_web_material[i] |= not_web_material[i+step]
 
     # not_web_material.plot_layers()
