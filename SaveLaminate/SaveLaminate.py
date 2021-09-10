@@ -12,9 +12,10 @@ def run(context):
         design = app.activeProduct
         root_comp = design.rootComponent
         sketches = root_comp.sketches
+        planes = root_comp.constructionPlanes
 
-        z_offset = -0.581 # Z offset for the first layer
-        t_layers = [0.381/3*2,0.1,0.127,0.1,0.381,0.1,0.127,0.1,0.381]
+        z_offset = -0.4595 # Z offset for the first layer
+        t_layers = [0.381,0.015,0.127,0.015,0.381]
 
         input, isCancelled = ui.inputBox('Z offset for first layer in mm', '', str(z_offset))
         if isCancelled: return
@@ -43,22 +44,26 @@ def run(context):
             layers[i] = []
 
             for occ in root_comp.allOccurrences:
-                xy_plane = root_comp.xYConstructionPlane
-                sketch = sketches.add(xy_plane)
+                plane_input = planes.createInput()
+                plane_input.setByOffset(root_comp.xYConstructionPlane, adsk.core.ValueInput.createByReal(z/10))
+                plane = planes.add(plane_input)
+                sketch = sketches.add(plane)
                 sketch.name = occ.component.name
+                # ui.messageBox('{} {} {}'.format(*sketch.yDirection.asArray()))
 
                 onLayer = False
                 for body in occ.component.bRepBodies:
                     if z/10 < body.boundingBox.maxPoint.z and z/10 > body.boundingBox.minPoint.z: # system unit is cm
-                        sketch.project(body.createForAssemblyContext(occ))
+                        sketch.intersectWithSketchPlane([body.createForAssemblyContext(occ)])
                         onLayer = True
 
                 if onLayer:
                     layers[i].append(occ.component.name)
                     sketch.saveAsDXF(os.path.join(path,'{:d}_{}.dxf'.format(i, occ.component.name)))
-                sketch.deleteMe()
-            # ui.messageBox('{:d}:{}'.format(i,layers[i]))
 
+                sketch.deleteMe()
+                plane.deleteMe()
+                # return
             z += t/2 # Move to start of next layer
 
         with open(os.path.join(path,'layers.csv'), 'w', newline='') as f:
@@ -72,11 +77,6 @@ def run(context):
         rev_joints = []
         for joint in all_joints[:]:
             if joint.jointMotion.jointType == adsk.fusion.JointTypes.RevoluteJointType:
-                # ui.messageBox('{}\n{},{}\n{:.2f},{:.2f},{:.2f}\n{:.2f},{:.2f},{:.2f}'.format(
-                #     joint.name,joint.occurrenceOne.component.name,joint.occurrenceTwo.component.name,
-                #     *joint.geometry.origin.asArray(),
-                #     *joint.jointMotion.rotationAxisVector.asArray()
-                # ))
                 rev_joints.append([
                     joint.occurrenceOne.component.name,joint.occurrenceTwo.component.name,
                     *[val*10 for val in joint.geometry.origin.asArray()], # convert to mm

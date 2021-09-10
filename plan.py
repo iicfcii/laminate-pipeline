@@ -22,7 +22,9 @@ def device(comps_poly,comps_circle,joints,layers_comp):
                  # TODO: Add logic to determine outer poly with bounding box
                 layer |= sg.Polygon(p)
             for circle in comps_circle[comp][l]:
-                layer ^= sg.Point(list(circle[0])[0:2]).buffer(circle[1],resolution=CIRCLE_RESOLUTION) # circles are cutout
+                # HACK Flip circle around x, probably relate to dxf z extrusion direction
+                center = (-list(circle[0])[0],-list(circle[0])[1])
+                layer ^= sg.Point(center).buffer(circle[1],resolution=CIRCLE_RESOLUTION) # circles are cutout
 
         # Merge touching bodies
         layer = Layer(layer)
@@ -177,7 +179,6 @@ def cuts(device,jig_diameter=5,jig_hole_spacing=20, clearance=1):
     # IDEA: Support can be within the keepout region if it is part of the web maeterial
     supported_device = web|device|support
 
-    # support.plot_layers()
     supported_device.plot_layers()
     release_cut_scrap.plot(new=True)
     plt.show(block=True)

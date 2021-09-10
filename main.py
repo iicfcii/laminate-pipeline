@@ -1,7 +1,7 @@
 import data
 import plan
 
-name = 'removable'
+name = 'dual_spring_mini_8'
 
 comps_poly,comps_circle,joints,layers_comp = data.read('./data/{}'.format(name))
 device, joints_cut, bodies_cut = plan.device(comps_poly,comps_circle,joints,layers_comp)
