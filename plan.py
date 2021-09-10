@@ -22,8 +22,8 @@ def device(comps_poly,comps_circle,joints,layers_comp):
                  # TODO: Add logic to determine outer poly with bounding box
                 layer |= sg.Polygon(p)
             for circle in comps_circle[comp][l]:
-                # HACK Flip circle around x, probably relate to dxf z extrusion direction
-                center = (-list(circle[0])[0],-list(circle[0])[1])
+                # HACK Flip circle around y, bug may be related to the extrusion direction(0,0,-1)
+                center = (-list(circle[0])[0],list(circle[0])[1])
                 layer ^= sg.Point(center).buffer(circle[1],resolution=CIRCLE_RESOLUTION) # circles are cutout
 
         # Merge touching bodies
