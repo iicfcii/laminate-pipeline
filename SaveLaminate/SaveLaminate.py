@@ -14,8 +14,8 @@ def run(context):
         sketches = root_comp.sketches
         planes = root_comp.constructionPlanes
 
-        z_offset = -0.4595 # Z offset for the first layer
-        t_layers = [0.381,0.015,0.127,0.015,0.381]
+        z_offset = -0.68 # Z offset for the first layer
+        t_layers = [0.254,0.015,0.127,0.015,0.254,0.015,0.508,0.015,0.127,0.015,0.508]
 
         input, isCancelled = ui.inputBox('Z offset for first layer in mm', '', str(z_offset))
         if isCancelled: return
