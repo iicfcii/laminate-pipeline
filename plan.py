@@ -185,7 +185,7 @@ def cuts(device,jig_diameter=5,jig_hole_spacing=20, clearance=1):
     layers_cut = supported_device[0]
     for i in range(1,num_layers):
         step = 10
-        d = int(np.ceil((h+10)*i/step))
+        d = int(np.ceil(h/step)*i+i)
         # HACK Directly translate a large distance can cause some features to be lost
         # layers_cut |= supported_device[i].translate(0,d*step)
         # Translate multiple small steps instead as a workaround
