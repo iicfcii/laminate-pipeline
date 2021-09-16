@@ -129,6 +129,7 @@ def jig_holes(x,y,w,h,jig_diameter,num_layers):
     return points
 
 def labels(x,y,w,h,jig_diameter,num_layers,thickness=0.2,gap=2):
+    assert gap < jig_diameter
     lines = []
     for i in range(num_layers):
         ls = Layer()
@@ -141,9 +142,15 @@ def labels(x,y,w,h,jig_diameter,num_layers,thickness=0.2,gap=2):
             l = l.buffer(thickness/2,cap_style=sg.CAP_STYLE.square)
             ls |= Layer(l)
         lines.append(ls)
-    lines = Laminate(*lines)
 
-    return lines
+    circles = []
+    for i in range(num_layers):
+        c = Layer(sg.Point((x-gap,y-h/2)).buffer(gap/2,resolution=1))
+        circles.append(c)
+
+    labels = Laminate(*lines) | Laminate(*circles)
+
+    return labels
 
 
 def cuts(device,jig_diameter=5,jig_hole_spacing=20, clearance=1):
