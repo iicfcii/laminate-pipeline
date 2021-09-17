@@ -75,13 +75,21 @@ def run(context):
 
         all_joints = [*root_comp.allAsBuiltJoints,*root_comp.allJoints]
         rev_joints = []
+        error_joints = []
         for joint in all_joints[:]:
             if joint.jointMotion.jointType == adsk.fusion.JointTypes.RevoluteJointType:
-                rev_joints.append([
-                    joint.occurrenceOne.component.name,joint.occurrenceTwo.component.name,
-                    *[val*10 for val in joint.geometry.origin.asArray()], # convert to mm
-                    *joint.jointMotion.rotationAxisVector.asArray() # unit vector
-                ])
+                try:
+                    rev_joints.append([
+                        joint.occurrenceOne.component.name,joint.occurrenceTwo.component.name,
+                        *[val*10 for val in joint.geometry.origin.asArray()], # convert to mm
+                        *joint.jointMotion.rotationAxisVector.asArray() # unit vector
+                    ])
+                except:
+                    error_joints.append(joint.name)
+                    continue
+
+        if len(error_joints) > 0:
+            ui.messageBox('Following joints have error: {}'.format(', '.join(error_joints)))
 
         with open(os.path.join(path,'rev_joints.csv'), 'w', newline='') as f:
             writer = csv.writer(f)

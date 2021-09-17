@@ -2,7 +2,9 @@ import data
 import plan
 import matplotlib.pyplot as plt
 
-name = 'leg_253'
+# name = 'leg_253'
+# name = 'leg_253_coupler'
+name = 'leg_253_full'
 
 comps_poly,comps_circle,joints,layers_comp = data.read('./data/{}'.format(name))
 device, joints_cut, bodies_cut = plan.device(comps_poly,comps_circle,joints,layers_comp)
