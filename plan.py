@@ -12,7 +12,7 @@ SMALL_DIM = 0.001
 CUT_THICKNESS = 0.1
 CIRCLE_RESOLUTION = 5
 
-def device(comps_poly,comps_circle,joints,layers_comp):
+def device(comps_poly,comps_circle,joints,layers_comp,joint_fun=joint.plain5):
     # Construct device
     device = []
     for l in layers_comp.keys():
@@ -38,7 +38,7 @@ def device(comps_poly,comps_circle,joints,layers_comp):
     for j in joints:
         for line in j['lines']:
             # TODO: Support different types of joint
-            joint_block = joint.plain5(line, invert=True)
+            joint_block = joint_fun(line, invert=True)
             start_layer = j['layer']-int(len(joint_block)/2)
             layers = []
             for i in range(len(device)):
@@ -69,7 +69,7 @@ def device(comps_poly,comps_circle,joints,layers_comp):
     joints_mask = Laminate(*[Layer()]*len(device))
     for j in joints:
         for line in j['lines']:
-            joint_block = joint.plain5(line, w=0.5, dl=-CUT_THICKNESS)
+            joint_block = joint_fun(line, w=0.5, dl=-CUT_THICKNESS)
             start_layer = j['layer']-int(len(joint_block)/2)
             layers = []
             for i in range(len(device)):
