@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import shapely.geometry as sg
+import shapely.affinity as sa
 import foldable_robotics.dxf as dxf
 from foldable_robotics.layer import Layer
 from foldable_robotics.laminate import Laminate
@@ -12,7 +13,7 @@ SMALL_DIM = 0.001
 CUT_THICKNESS = 0.1
 CIRCLE_RESOLUTION = 5
 
-def device(comps_poly,comps_circle,joints,layers_comp,joint_fun=joint.plain5):
+def device(comps_poly,comps_circle,joints,layers_comp,joint_dicts=joint.DICTS):
     # Construct device
     device = []
     for l in layers_comp.keys():
@@ -33,12 +34,19 @@ def device(comps_poly,comps_circle,joints,layers_comp,joint_fun=joint.plain5):
 
     device = Laminate(*device)
 
+    def joint_fun(j):
+        if j['type'] in joint_dicts:
+            return joint_dicts[j['type']]
+        else:
+            # If type not matched, used the first one in dict
+            return joint_dicts[list(joint_dicts.keys())[0]]
+
     # Cut for forming joints in laminate
     joints_cut = Laminate(*[Layer()]*len(device))
     for j in joints:
         for line in j['lines']:
-            # TODO: Support different types of joint
-            joint_block = joint_fun(line, invert=True)
+            jf = joint_fun(j)
+            joint_block = jf(line, invert=True)
             start_layer = j['layer']-int(len(joint_block)/2)
             layers = []
             for i in range(len(device)):
@@ -69,7 +77,8 @@ def device(comps_poly,comps_circle,joints,layers_comp,joint_fun=joint.plain5):
     joints_mask = Laminate(*[Layer()]*len(device))
     for j in joints:
         for line in j['lines']:
-            joint_block = joint_fun(line, w=0.5, dl=-CUT_THICKNESS)
+            jf = joint_fun(j)
+            joint_block = jf(line, w=0.5, dl=-CUT_THICKNESS)
             start_layer = j['layer']-int(len(joint_block)/2)
             layers = []
             for i in range(len(device)):
@@ -112,9 +121,6 @@ def not_web_material(laminate,up):
         if is_adhesive[i+step]:
             not_web_material[i] |= not_web_material[i+step]
 
-    # not_web_material.plot_layers()
-    # plt.show(block=True)
-
     return not_web_material
 
 def jig_holes(x,y,w,h,jig_diameter,num_layers):
@@ -152,6 +158,18 @@ def labels(x,y,w,h,jig_diameter,num_layers,thickness=0.2,gap=2):
 
     return labels
 
+# This translate function will print out exception and try to reolve it
+# instead of not giving any info and losing features
+def safe_translate_layer(layer,dx,dy):
+    l = sg.Polygon()
+    for geom in layer.geoms:
+        g = sa.translate(geom,dx,dy)
+        try:
+            l |= g
+        except:
+            print('Please check the cuts. Tried to resolve exception by simplifying the geom a bit.')
+            l |= g.simplify(0.0001)
+    return Layer(l)
 
 def cuts(device,jig_diameter=5,jig_hole_spacing=20, clearance=1):
     assert clearance > 0
@@ -193,13 +211,7 @@ def cuts(device,jig_diameter=5,jig_hole_spacing=20, clearance=1):
     for i in range(1,num_layers):
         step = 10
         d = int(np.ceil(h/step)*i+i)
-        # HACK Directly translate a large distance can cause some features to be lost
-        # layers_cut |= supported_device[i].translate(0,d*step)
-        # Translate multiple small steps instead as a workaround
-        l = supported_device[i]
-        for j in range(d):
-            l = l.translate(0,step)
-        layers_cut |= l
+        layers_cut |= safe_translate_layer(supported_device[i],0,d*step)
 
     release_cut = release_cut_scrap[0]
 

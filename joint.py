@@ -25,7 +25,7 @@ def plain5(line, w=1.5, invert=False, dl=0):
         return Laminate(flex_layer-other_layer,flex_layer-other_layer,flex_layer-flex_layer,flex_layer-other_layer,flex_layer-other_layer)
 
 # Plain 1 layer joint
-# This basically make sure joint at the layer is connected
+# This basically makes sure joint at the layer is connected
 def plain1(line, w=1.5, invert=False, dl=0):
     line = np.array(line).reshape((2,2))
 
@@ -43,3 +43,8 @@ def plain1(line, w=1.5, invert=False, dl=0):
         return Laminate(flex_layer)
     else:
         return Laminate(flex_layer-flex_layer)
+
+DICTS = {
+    'plain5': plain5,
+    'plain1': plain1
+}

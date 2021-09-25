@@ -3,11 +3,10 @@ import plan
 import joint
 import matplotlib.pyplot as plt
 
-name = 'rib_test'
+name = 'leg_253'
 
 device, joints_cut, bodies_cut = plan.device(
-    *data.read('./data/{}'.format(name)),
-    joint_fun=joint.plain1
+    *data.read('./data/{}'.format(name))
 )
  # Use clearance to remove thin web and separate web from device
 layers_cut, release_cut = plan.cuts(device)

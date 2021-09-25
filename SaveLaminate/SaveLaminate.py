@@ -80,6 +80,7 @@ def run(context):
             if joint.jointMotion.jointType == adsk.fusion.JointTypes.RevoluteJointType:
                 try:
                     rev_joints.append([
+                        joint.name,
                         joint.occurrenceOne.component.name,joint.occurrenceTwo.component.name,
                         *[val*10 for val in joint.geometry.origin.asArray()], # convert to mm
                         *joint.jointMotion.rotationAxisVector.asArray() # unit vector
@@ -93,7 +94,7 @@ def run(context):
 
         with open(os.path.join(path,'rev_joints.csv'), 'w', newline='') as f:
             writer = csv.writer(f)
-            writer.writerow(['componentA','componentB','x','y','z','dx','dy','dz'])
+            writer.writerow(['name','componentA','componentB','x','y','z','dx','dy','dz'])
             for j in rev_joints:
                 writer.writerow(j)
 

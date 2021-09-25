@@ -36,12 +36,24 @@ def read(path):
         for i, row in enumerate(reader):
             if i == 0: continue
 
-            compA = row[0]
-            compB = row[1]
-            pt = [float(val) for val in row[2:5]]
-            dir = [float(val) for val in row[5:8]]
+            name = row[0]
+            compA = row[1]
+            compB = row[2]
+            pt = [float(val) for val in row[3:6]]
+            dir = [float(val) for val in row[6:9]]
+
+            type = name.split('=')
+            assert len(type) <= 2, 'Incorrect joint name format. Name of joints should be JOINTNAME=JOINTTYPE'
+
+            if len(type) == 1:
+                type = None
+            else:
+                name = type[0]
+                type = type[1]
 
             j = {}
+            j['name'] = name
+            j['type'] = type
             j['compA'] = compA
             j['compB'] = compB
             j['pt'] = pt
@@ -104,6 +116,5 @@ def read(path):
 
         j['lines'] = lines_shrunk
         j['layer'] = l
-        # print(j)
 
     return comps_poly,comps_circle,joints,layers_comp
