@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import shapely.geometry as sg
 import shapely.affinity as sa
+import shapely.errors as se
 import foldable_robotics.dxf as dxf
 from foldable_robotics.layer import Layer
 from foldable_robotics.laminate import Laminate
@@ -166,9 +167,11 @@ def safe_translate_layer(layer,dx,dy):
         g = sa.translate(geom,dx,dy)
         try:
             l |= g
-        except:
+        except se.TopologicalError as e:
             print('Please check the cuts. Tried to resolve exception by simplifying the geom a bit.')
-            l |= g.simplify(0.0001)
+            if not l.is_valid: l = l.simplify(0.0001)
+            if not g.is_valid: g = g.simplify(0.0001)
+            l |= g
     return Layer(l)
 
 def cuts(device,jig_diameter=5,jig_hole_spacing=20, clearance=1):
