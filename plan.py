@@ -141,27 +141,31 @@ def jig_holes(x,y,w,h,jig_diameter,num_layers):
 
     return points
 
-def labels(x,y,w,h,jig_diameter,num_layers,thickness=0.2,gap=2):
+def labels(x,y,w,h,jig_diameter,num_layers,thickness=0.2,gap=2,hide_lines=False):
     assert gap < jig_diameter
-    lines = []
-    for i in range(num_layers):
-        ls = Layer()
-        for j in range(i+1):
-            xl = x+j*(thickness+gap)
-            l = sg.LineString([
-                (xl,y-h/2-jig_diameter/2+thickness/2),
-                (xl,y-h/2+jig_diameter/2-thickness/2)
-            ])
-            l = l.buffer(thickness/2,cap_style=sg.CAP_STYLE.square)
-            ls |= Layer(l)
-        lines.append(ls)
 
     circles = []
     for i in range(num_layers):
         c = Layer(sg.Point((x-gap,y-h/2)).buffer(gap/2,resolution=1))
         circles.append(c)
 
-    labels = Laminate(*lines) | Laminate(*circles)
+    if not hide_lines:
+        lines = []
+        for i in range(num_layers):
+            ls = Layer()
+            for j in range(i+1):
+                xl = x+j*(thickness+gap)
+                l = sg.LineString([
+                    (xl,y-h/2-jig_diameter/2+thickness/2),
+                    (xl,y-h/2+jig_diameter/2-thickness/2)
+                ])
+                l = l.buffer(thickness/2,cap_style=sg.CAP_STYLE.square)
+                ls |= Layer(l)
+            lines.append(ls)
+
+        labels = Laminate(*lines) | Laminate(*circles)
+    else:
+        labels = Laminate(*circles)
 
     return labels
 
@@ -208,7 +212,8 @@ def cuts(device,jig_diameter=5,jig_hole_spacing=20, clearance=1):
 
     web = web_material-holes-lines # Web that holds the device before release cut
     keepout =  mfg.keepout_laser(device) # Keepout region that laser should never cut
-    release_cut_scrap = sheet-keepout
+    release_cut_label = labels(xc,yc,w,h,jig_diameter,num_layers,hide_lines=True)
+    release_cut_scrap = sheet-keepout-release_cut_label
     support = mfg.support(device,mfg.keepout_laser,clearance,0)
     # IDEA: Support can be within the keepout region if it is part of the web maeterial
     supported_device = web|device|support
