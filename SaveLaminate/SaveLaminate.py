@@ -17,11 +17,19 @@ def run(context):
         z_offset = 0 # Z offset for the first layer
         t_layers = [0.381,0.015,0.127,0.015,0.381]
 
-        input, isCancelled = ui.inputBox('Z offset for first layer in mm', '', str(z_offset))
+        input, isCancelled = ui.inputBox(
+            'Signed distance between\nthe bottom of your design\nto the xy plane in mm',
+            'Z offset',
+            str(z_offset)
+        )
         if isCancelled: return
         z_offset = float(input)
 
-        input, isCancelled = ui.inputBox('Layer thicknesses in mm', '', ','.join([str(t) for t in t_layers]))
+        input, isCancelled = ui.inputBox(
+            'Layer thicknesses in mm separated by ","\nFor a single layer design, just enter one number.',
+            'Layer thicknesses',
+            ','.join([str(t) for t in t_layers])
+        )
         if isCancelled: return
         t_layers = [float(i) for i in input.split(',')]
 
