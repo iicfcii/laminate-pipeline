@@ -16,21 +16,21 @@ Here are the general steps for designing your own laminate robots.
 * Validate your design by folding the components into desired shape. If you want to add other non-laminate parts such as motors and PCBs, please create another design and import this to there. This way, other parts won't interfere with latter scripts.  
 
 ## Python Environment
-The scripts are written in Python. Please install [Miniconda](https://docs.conda.io/en/latest/miniconda.html)/[Anaconda](https://www.anaconda.com/) to manage the python environment and required software packages. After installation, open an "Anaconda Prompt" and use the following commands.
+The scripts are written in Python. Please install [Miniconda](https://docs.conda.io/en/latest/miniconda.html)/[Anaconda](https://www.anaconda.com/) to manage the python environment and required software packages. After installation, open an "Anaconda Prompt" and use the following commands. **Mac environment is not tested.**
 
 Create a Python 3.8 environment.
 ```
 conda create --name laminate python=3.8
 ```
 
+Activate the environment.
+```
+conda activate laminate
+```
+
 Install [foldable_robotics](https://github.com/idealabasu/code_foldable_robotics) package.
 ```
 pip install foldable_robotics
-```
-
-You may need to install shapely manually.
-```
-conda install shapely
 ```
 
 Please either clone or download and extract this repository to your desired folder.
@@ -42,7 +42,11 @@ Please either clone or download and extract this repository to your desired fold
 * The script will automatically convert the design and save some dxf and csv files into the folder you just selected. A complicated design might take a while to process.
 
 ## Generate cut files
-* In the "Anaconda Prompt", use the following command.
+* In the "Anaconda Prompt", activate the environment.
+```
+conda activate laminate
+```
+* Then, run the script.
 ```
 python PATH\TO\REPOSITORY\main.py PATH\TO\EXPORT\FOLDER
 ```
