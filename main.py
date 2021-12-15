@@ -3,7 +3,7 @@ import plan
 import joint
 import matplotlib.pyplot as plt
 
-name = 'leg_253'
+name = 'fourbar_1layer'
 
 device, joints_cut, bodies_cut = plan.device(
     *data.read('./data/{}'.format(name))

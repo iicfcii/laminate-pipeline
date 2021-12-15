@@ -39,8 +39,14 @@ def device(comps_poly,comps_circle,joints,layers_comp,joint_dicts=joint.DICTS):
         if j['type'] in joint_dicts:
             return joint_dicts[j['type']]
         else:
-            # If type not matched, used the first one in dict
-            return joint_dicts[list(joint_dicts.keys())[0]]
+            max_layer = np.amax(list(layers_comp.keys()))
+            if max_layer == 4:
+                return joint_dicts['plain5']
+            elif max_layer == 0:
+                return joint_dicts['dashed1']
+            else:
+                # If type not matched, used the first one in dict
+                return joint_dicts[list(joint_dicts.keys())[0]]
 
     # Cut for forming joints in laminate
     joints_cut = Laminate(*[Layer()]*len(device))
