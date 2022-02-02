@@ -5,19 +5,13 @@ import os, sys
 
 if __name__ == '__main__':
     path = sys.argv[1]
-    folder_name = os.path.basename(os.path.normpath(path))
+    plot = sys.argv[2] == '-p' if len(sys.argv) > 2 else False
 
-    device, joints_cut, bodies_cut = plan.device(
-        *data.read(path)
-    )
-     # Use clearance to remove thin web and separate web from device
-    layers_cut, release_cut = plan.cuts(device)
+    polys, circles, joints, layers = data.read(path)
 
-    # layers_cut.plot(new=True)
-    # release_cut.plot(new=True)
-    # plt.show(block=True)
+    device, joints_cut, bodies_cut = plan.device(polys, circles, joints, layers)
 
-    layers_cut.export_dxf(os.path.join(path,'{}_layers'.format(folder_name)))
-    release_cut.export_dxf(os.path.join(path,'{}_release'.format(folder_name)))
+    # Use clearance to remove thin web and separate web from device
+    supported_device, release_cut_scrap, single_layer_cut = plan.cuts(device)
 
-    print('{} cuts generated'.format(folder_name))
+    plan.export(path,supported_device,release_cut_scrap,single_layer_cut,plot=plot)

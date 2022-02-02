@@ -7,6 +7,7 @@ import foldable_robotics.dxf as dxf
 from foldable_robotics.layer import Layer
 from foldable_robotics.laminate import Laminate
 import foldable_robotics.manufacturing as mfg
+import os, sys
 
 import joint
 
@@ -218,6 +219,43 @@ def cuts(device,jig_diameter=5,jig_hole_spacing=20, clearance=1):
     # IDEA: Support can be within the keepout region if it is part of the web maeterial
     supported_device = web|device|support
 
+    device_released = supported_device-release_cut_scrap.dilate(CUT_THICKNESS/2)
+    material_cut = device_released.dilate(CUT_THICKNESS) & release_cut_scrap
+
+    single_layer_cut = []  # Cuts that only happens on a single layer
+    for i in range(num_layers):
+        material_cut_n = material_cut[i]
+        for i in range(num_layers):
+            if i == 2: continue
+            material_cut_n -= material_cut[i]
+        material_cut_n.geoms = [g for g in material_cut_n.geoms if g.area > 1e-3]
+        material_cut_n = material_cut_n.dilate(CUT_THICKNESS/2)
+
+        material_cut_n_mpg = sg.MultiPolygon(material_cut_n.geoms)
+        release_cut_lines = []
+
+        def separate(b):
+            pts = b.coords
+            for p1, p2 in zip(pts,pts[1:]+[pts[0]]):
+                release_cut_lines.append(sg.LineString([p1,p2]))
+
+        for g in release_cut_scrap[0].geoms:
+            if g.boundary.type == 'MultiLineString':
+                for ls in g.boundary.geoms:
+                    separate(ls)
+            else:
+                separate(g.boundary)
+        release_cut_lines = sg.MultiLineString(release_cut_lines)
+        material_cut_n_lines = release_cut_lines & material_cut_n_mpg
+        material_cut_n_lines = Layer(material_cut_n_lines)
+        single_layer_cut.append(material_cut_n_lines)
+    single_layer_cut = Laminate(*single_layer_cut)
+
+    return supported_device, release_cut_scrap, single_layer_cut
+
+def export(path, supported_device, release_cut_scrap, single_layer_cut,plot=False):
+    num_layers = len(supported_device)
+
     # Prepare cuts
     w, h = mfg.unary_union(supported_device).bounding_box().get_dimensions()
 
@@ -229,4 +267,11 @@ def cuts(device,jig_diameter=5,jig_hole_spacing=20, clearance=1):
 
     release_cut = release_cut_scrap[0]
 
-    return layers_cut, release_cut
+    if plot:
+        layers_cut.plot(new=True)
+        release_cut.plot(new=True)
+        plt.show(block=True)
+
+    folder_name = os.path.basename(os.path.normpath(path))
+    layers_cut.export_dxf(os.path.join(path,'{}_layers'.format(folder_name)))
+    release_cut.export_dxf(os.path.join(path,'{}_release'.format(folder_name)))
