@@ -248,7 +248,7 @@ def cuts(device,jig_diameter=5,jig_hole_spacing=20, clearance=1):
 
         material_cut_n.geoms = [g for g in material_cut_n.geoms if g.area > CUT_THICKNESS**2]
         material_cut_n = material_cut_n.erode(CUT_THICKNESS/10).dilate(CUT_THICKNESS/10) # clean very thin lines
-        material_cut_n = material_cut_n.dilate(CUT_THICKNESS/2)
+        material_cut_n = material_cut_n.dilate(0.8) # Expand a bit to make sure all-the-way cuts won't affect single-layer cut
 
         material_cut_n_mpg = Layer(sg.MultiPolygon(material_cut_n.geoms))
         material_cut_n_lines = release_cut & material_cut_n_mpg
