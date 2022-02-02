@@ -8,6 +8,7 @@ from foldable_robotics.layer import Layer
 from foldable_robotics.laminate import Laminate
 import foldable_robotics.manufacturing as mfg
 import os, sys
+import ezdxf
 
 import joint
 
@@ -217,61 +218,76 @@ def cuts(device,jig_diameter=5,jig_hole_spacing=20, clearance=1):
     release_cut_scrap = sheet-keepout-release_cut_label
     support = mfg.support(device,mfg.keepout_laser,clearance,0)
     # IDEA: Support can be within the keepout region if it is part of the web maeterial
-    supported_device = web|device|support
+    layers_cut = web|device|support
 
-    device_released = supported_device-release_cut_scrap.dilate(CUT_THICKNESS/2)
+    device_released = layers_cut-release_cut_scrap.dilate(CUT_THICKNESS/2)
     material_cut = device_released.dilate(CUT_THICKNESS) & release_cut_scrap
 
-    single_layer_cut = []  # Cuts that only happens on a single layer
-    for i in range(num_layers):
-        material_cut_n = material_cut[i]
+    release_cut = [] # Release cuts in individual lines
+
+    def separate(b):
+        pts = b.coords
+        for p1, p2 in zip(pts,pts[1:]+[pts[0]]):
+            release_cut.append(sg.LineString([p1,p2]))
+
+    for g in release_cut_scrap[0].geoms:
+        if g.boundary.type == 'MultiLineString':
+            for ls in g.boundary.geoms:
+                separate(ls)
+        else:
+            separate(g.boundary)
+    release_cut = Layer(sg.MultiLineString(release_cut))
+
+    release_cut_layers = []  # Cuts that only happens on a single layer
+    for j in range(num_layers):
+        material_cut_n = material_cut[j]
         for i in range(num_layers):
-            if i == 2: continue
+            if i == j: continue
             material_cut_n -= material_cut[i]
-        material_cut_n.geoms = [g for g in material_cut_n.geoms if g.area > 1e-3]
-        material_cut_n = material_cut_n.dilate(CUT_THICKNESS/2)
+        material_cut_n.geoms = [g for g in material_cut_n.geoms if g.area > CUT_THICKNESS**2]
+        # material_cut_n = material_cut_n.dilate(CUT_THICKNESS/2) # better match the actual cut lines
+        material_cut_n_lines = Layer(sg.MultiPolygon(material_cut_n.geoms))
+        material_cut_n_lines = release_cut & material_cut_n_lines
+        release_cut_layers.append(material_cut_n_lines)
+    release_cut_layers = Laminate(*release_cut_layers)
 
-        material_cut_n_mpg = sg.MultiPolygon(material_cut_n.geoms)
-        release_cut_lines = []
+    # Remove single layer cuts from the total cuts
+    for l in release_cut_layers: release_cut -= l
 
-        def separate(b):
-            pts = b.coords
-            for p1, p2 in zip(pts,pts[1:]+[pts[0]]):
-                release_cut_lines.append(sg.LineString([p1,p2]))
+    return layers_cut, release_cut, release_cut_layers
 
-        for g in release_cut_scrap[0].geoms:
-            if g.boundary.type == 'MultiLineString':
-                for ls in g.boundary.geoms:
-                    separate(ls)
-            else:
-                separate(g.boundary)
-        release_cut_lines = sg.MultiLineString(release_cut_lines)
-        material_cut_n_lines = release_cut_lines & material_cut_n_mpg
-        material_cut_n_lines = Layer(material_cut_n_lines)
-        single_layer_cut.append(material_cut_n_lines)
-    single_layer_cut = Laminate(*single_layer_cut)
-
-    return supported_device, release_cut_scrap, single_layer_cut
-
-def export(path, supported_device, release_cut_scrap, single_layer_cut,plot=False):
-    num_layers = len(supported_device)
+def export(path, layers_cut, release_cut, release_cut_layers, plot=False):
+    num_layers = len(layers_cut)
 
     # Prepare cuts
-    w, h = mfg.unary_union(supported_device).bounding_box().get_dimensions()
+    w, h = mfg.unary_union(layers_cut).bounding_box().get_dimensions()
 
-    layers_cut = supported_device[0]
+    layers_cut_final = layers_cut[0]
     for i in range(1,num_layers):
         step = 10
         d = int(np.ceil(h/step)*i+i)
-        layers_cut |= safe_translate_layer(supported_device[i],0,d*step)
-
-    release_cut = release_cut_scrap[0]
+        layers_cut_final |= safe_translate_layer(layers_cut[i],0,d*step)
 
     if plot:
-        layers_cut.plot(new=True)
-        release_cut.plot(new=True)
+        layers_cut_final.plot(new=True)
+        plt.figure()
+        for l in release_cut_layers: l.plot()
+        release_cut.plot()
         plt.show(block=True)
 
     folder_name = os.path.basename(os.path.normpath(path))
-    layers_cut.export_dxf(os.path.join(path,'{}_layers'.format(folder_name)))
-    release_cut.export_dxf(os.path.join(path,'{}_release'.format(folder_name)))
+    layers_cut_final.export_dxf(os.path.join(path,'{}_layers'.format(folder_name)))
+
+    # Different color for all-the-way cuts and signle-layer cuts
+    doc = ezdxf.new('R2010')
+    msp = doc.modelspace()
+    c = 0
+    for line in release_cut.get_paths():
+        msp.add_lwpolyline(line,dxfattribs={'color': c})
+    c += 1
+    for l in release_cut_layers:
+        for line in l.get_paths():
+            msp.add_lwpolyline(line,dxfattribs={'color': c})
+        c += 1
+        if c > 6: print('Running out of colors for single-layer cut')
+    doc.saveas(os.path.join(path,'{}_release.dxf'.format(folder_name)))

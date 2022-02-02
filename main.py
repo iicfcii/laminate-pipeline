@@ -12,6 +12,6 @@ if __name__ == '__main__':
     device, joints_cut, bodies_cut = plan.device(polys, circles, joints, layers)
 
     # Use clearance to remove thin web and separate web from device
-    supported_device, release_cut_scrap, single_layer_cut = plan.cuts(device)
+    layers_cut, release_cut, release_cut_layers = plan.cuts(device)
 
-    plan.export(path,supported_device,release_cut_scrap,single_layer_cut,plot=plot)
+    plan.export(path, layers_cut, release_cut, release_cut_layers, plot=plot)
