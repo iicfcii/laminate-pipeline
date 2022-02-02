@@ -239,20 +239,33 @@ def cuts(device,jig_diameter=5,jig_hole_spacing=20, clearance=1):
     release_cut = Layer(sg.MultiLineString(release_cut))
 
     release_cut_layers = []  # Cuts that only happens on a single layer
+    release_cut_layers_mpg = []
     for j in range(num_layers):
         material_cut_n = material_cut[j]
         for i in range(num_layers):
             if i == j: continue
             material_cut_n -= material_cut[i]
+
         material_cut_n.geoms = [g for g in material_cut_n.geoms if g.area > CUT_THICKNESS**2]
-        # material_cut_n = material_cut_n.dilate(CUT_THICKNESS/2) # better match the actual cut lines
-        material_cut_n_lines = Layer(sg.MultiPolygon(material_cut_n.geoms))
-        material_cut_n_lines = release_cut & material_cut_n_lines
+        material_cut_n = material_cut_n.erode(CUT_THICKNESS/10).dilate(CUT_THICKNESS/10) # clean very thin lines
+        material_cut_n = material_cut_n.dilate(CUT_THICKNESS/2)
+
+        material_cut_n_mpg = Layer(sg.MultiPolygon(material_cut_n.geoms))
+        material_cut_n_lines = release_cut & material_cut_n_mpg
+
         release_cut_layers.append(material_cut_n_lines)
+        release_cut_layers_mpg.append(material_cut_n_mpg)
+
     release_cut_layers = Laminate(*release_cut_layers)
+    release_cut_layers_mpg = Laminate(*release_cut_layers_mpg)
 
     # Remove single layer cuts from the total cuts
-    for l in release_cut_layers: release_cut -= l
+    for rcl_mpg  in release_cut_layers_mpg: release_cut -= rcl_mpg
+
+    # release_cut_layers_mpg[2].plot()
+    # release_cut_layers[2].plot()
+    # release_cut.plot()
+    # plt.show(block=True)
 
     return layers_cut, release_cut, release_cut_layers
 
