@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 # w: width of joint, design within this width will be deleted
 # invert: if true, return the actual joint material. Otherwise, return the material to be cut to form the joint
 # dl: length offset to mask joint for cleaner cuts
-def plain5(line, w=1.5, invert=False, dl=0):
+def plain5(line, w=1, invert=False, dl=0):
     line = np.array(line).reshape((2,2))
 
     center = np.average(line,axis=0)
