@@ -55,7 +55,7 @@ def device(comps_poly,comps_circle,joints,layers_comp,joint_dicts=joint.DICTS):
     for j in joints:
         for line in j['lines']:
             jf = joint_fun(j)
-            joint_block = jf(line, invert=True)
+            joint_block = joint.inv(jf,line)
             start_layer = j['layer']-int(len(joint_block)/2)
             layers = []
             for i in range(len(device)):
@@ -87,7 +87,7 @@ def device(comps_poly,comps_circle,joints,layers_comp,joint_dicts=joint.DICTS):
     for j in joints:
         for line in j['lines']:
             jf = joint_fun(j)
-            joint_block = jf(line, w=0.5, dl=-CUT_THICKNESS)
+            joint_block = jf(line)
             start_layer = j['layer']-int(len(joint_block)/2)
             layers = []
             for i in range(len(device)):

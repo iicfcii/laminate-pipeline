@@ -14,8 +14,8 @@ def run(context):
         sketches = root_comp.sketches
         planes = root_comp.constructionPlanes
 
-        z_offset = -0.4595 # Z offset for the first layer
-        t_layers = [0.4191,0.015,0.0508,0.015,0.4191]
+        z_offset = 0 # Z offset for the first layer
+        t_layers = [0.8255,0.015,0.13,0.015,0.4466]
 
         input, isCancelled = ui.inputBox(
             'Signed distance between\nthe bottom of your design\nto the xy plane in mm',
