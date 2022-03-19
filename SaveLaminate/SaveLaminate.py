@@ -85,16 +85,24 @@ def run(context):
                 for comp in layers[l]:
                     writer.writerow([l,comp,sum(t_layers[0:l])+z_offset]) # Save layer z start info
 
-        all_joints = [*root_comp.allAsBuiltJoints,*root_comp.allJoints]
+        # NOTE: Only AsBuiltJoint supported
+        all_joints = [*root_comp.allAsBuiltJoints]
         rev_joints = []
         error_joints = []
         for joint in all_joints[:]:
             if joint.jointMotion.jointType == adsk.fusion.JointTypes.RevoluteJointType:
                 try:
+                    def full_name(occ):
+                        if joint.assemblyContext is None:
+                            return format_name(occ.fullPathName)
+                        else:
+                            return format_name(joint.assemblyContext.fullPathName+'+'+occ.fullPathName)
+
                     rev_joints.append([
                         joint.name,
-                        format_name(joint.assemblyContext.fullPathName+'+'+joint.occurrenceOne.fullPathName),
-                        format_name(joint.assemblyContext.fullPathName+'+'+joint.occurrenceTwo.fullPathName),
+                        full_name(joint.occurrenceOne),full_name(joint.occurrenceTwo),
+                        # TODO: under patterned components, the origin is local
+                        # Find a way to make sure origin is wrt world
                         *[val*10 for val in joint.geometry.origin.asArray()], # convert to mm
                         *joint.jointMotion.rotationAxisVector.asArray() # unit vector
                     ])
