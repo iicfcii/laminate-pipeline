@@ -4,6 +4,9 @@
 import os, csv
 import adsk.core, adsk.fusion, adsk.cam, traceback
 
+def format_name(s):
+    return s.replace(':','-').replace('+','-')
+
 def run(context):
     ui = None
     try:
@@ -15,7 +18,7 @@ def run(context):
         planes = root_comp.constructionPlanes
 
         z_offset = 0 # Z offset for the first layer
-        t_layers = [0.8255,0.015,0.13,0.015,0.4466]
+        t_layers = [0.82,0.015,0.13,0.015,0.45]
 
         input, isCancelled = ui.inputBox(
             'Signed distance between\nthe bottom of your design\nto the xy plane in mm',
@@ -56,7 +59,7 @@ def run(context):
                 plane_input.setByOffset(root_comp.xYConstructionPlane, adsk.core.ValueInput.createByReal(z/10))
                 plane = planes.add(plane_input)
                 sketch = sketches.add(plane)
-                sketch.name = occ.component.name
+                sketch.name = 'tmp'
                 # ui.messageBox('{} {} {}'.format(*sketch.yDirection.asArray()))
 
                 onLayer = False
@@ -66,8 +69,9 @@ def run(context):
                         onLayer = True
 
                 if onLayer:
-                    layers[i].append(occ.component.name)
-                    sketch.saveAsDXF(os.path.join(path,'{:d}_{}.dxf'.format(i, occ.component.name)))
+                    name = format_name(occ.fullPathName)
+                    layers[i].append(name)
+                    sketch.saveAsDXF(os.path.join(path,'{:d}_{}.dxf'.format(i, name)))
 
                 sketch.deleteMe()
                 plane.deleteMe()
@@ -89,7 +93,8 @@ def run(context):
                 try:
                     rev_joints.append([
                         joint.name,
-                        joint.occurrenceOne.component.name,joint.occurrenceTwo.component.name,
+                        format_name(joint.assemblyContext.fullPathName+'+'+joint.occurrenceOne.fullPathName),
+                        format_name(joint.assemblyContext.fullPathName+'+'+joint.occurrenceTwo.fullPathName),
                         *[val*10 for val in joint.geometry.origin.asArray()], # convert to mm
                         *joint.jointMotion.rotationAxisVector.asArray() # unit vector
                     ])
