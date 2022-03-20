@@ -23,8 +23,10 @@ def device(comps_poly,comps_circle,joints,layers_comp,joint_dicts=joint.DICTS):
         layer = sg.Polygon()
         for comp in layers_comp[l]:
             for p in comps_poly[comp][l]:
-                 # TODO: Add logic to determine outer poly with bounding box
-                layer |= sg.Polygon(p)
+                # TODO: Add logic to determine outer poly with bounding box
+                # NOTE: Some polygon union may fail.
+                # Dilate and erode fix the problem but not sure why
+                layer |= sg.Polygon(p).buffer(SMALL_DIM).buffer(-SMALL_DIM)
             for circle in comps_circle[comp][l]:
                 # HACK Flip circle around y, bug may be related to the extrusion direction(0,0,-1)
                 center = (-list(circle[0])[0],list(circle[0])[1])
