@@ -75,7 +75,7 @@ def run(context):
 
                 sketch.deleteMe()
                 plane.deleteMe()
-                # return
+
             z += t/2 # Move to start of next layer
 
         with open(os.path.join(path,'layers.csv'), 'w', newline='') as f:
@@ -98,12 +98,15 @@ def run(context):
                         else:
                             return format_name(joint.assemblyContext.fullPathName+'+'+occ.fullPathName)
 
+                    origin = joint.geometry.origin
+                    if joint.assemblyContext is not None:
+                        tf = joint.assemblyContext.transform2
+                        origin.transformBy(tf)
+
                     rev_joints.append([
                         joint.name,
                         full_name(joint.occurrenceOne),full_name(joint.occurrenceTwo),
-                        # TODO: under patterned components, the origin is local
-                        # Find a way to make sure origin is wrt world
-                        *[val*10 for val in joint.geometry.origin.asArray()], # convert to mm
+                        *[val*10 for val in origin.asArray()], # convert to mm
                         *joint.jointMotion.rotationAxisVector.asArray() # unit vector
                     ])
                 except:
