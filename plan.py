@@ -248,7 +248,7 @@ def cuts(device,jig_diameter=5,jig_hole_spacing=20, clearance=1):
             if i == j: continue
             material_cut_n -= material_cut[i]
 
-        material_cut_n.geoms = [g for g in material_cut_n.geoms if g.area > CUT_THICKNESS**2]
+        material_cut_n.geoms = [g for g in material_cut_n.geoms if g.area > (CUT_THICKNESS/2)**2]
         material_cut_n = material_cut_n.erode(CUT_THICKNESS/10).dilate(CUT_THICKNESS/10) # clean very thin lines
         material_cut_n = material_cut_n.dilate(0.8) # Expand a bit to make sure all-the-way cuts won't affect single-layer cut
 
@@ -262,7 +262,7 @@ def cuts(device,jig_diameter=5,jig_hole_spacing=20, clearance=1):
     release_cut_layers_mpg = Laminate(*release_cut_layers_mpg)
 
     # Remove single layer cuts from the total cuts
-    for rcl_mpg  in release_cut_layers_mpg: release_cut -= rcl_mpg
+    for rcl_mpg in release_cut_layers_mpg: release_cut -= rcl_mpg
 
     # release_cut_layers_mpg[2].plot()
     # release_cut_layers[2].plot()
