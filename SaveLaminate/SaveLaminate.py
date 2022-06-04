@@ -3,6 +3,7 @@
 
 import os, csv
 import adsk.core, adsk.fusion, adsk.cam, traceback
+from adsk.core import Vector3D
 
 def format_name(s):
     return s.replace(':','-').replace('+','-')
@@ -16,9 +17,10 @@ def run(context):
         root_comp = design.rootComponent
         sketches = root_comp.sketches
         planes = root_comp.constructionPlanes
+        meas_mgr = app.measureManager
 
         z_offset = 0 # Z offset for the first layer
-        t_layers = [0.83,0.015,0.05,0.015,0.45]
+        t_layers = [1,1,1,1,1]
 
         input, isCancelled = ui.inputBox(
             'Signed distance between\nthe bottom of your design\nto the xy plane in mm',
@@ -63,9 +65,14 @@ def run(context):
                 # ui.messageBox('{} {} {}'.format(*sketch.yDirection.asArray()))
 
                 onLayer = False
-                for body in occ.component.bRepBodies:
-                    if z/10 < body.boundingBox.maxPoint.z and z/10 > body.boundingBox.minPoint.z: # system unit is cm
-                        sketch.intersectWithSketchPlane([body.createForAssemblyContext(occ)])
+                for body in occ.bRepBodies:
+                    # Measure bounding box aligned to world x y z
+                    bbox = meas_mgr.getOrientedBoundingBox(body,Vector3D.create(1,0,0),Vector3D.create(0,1,0))
+                    zc = bbox.centerPoint.z
+                    h = bbox.height
+
+                    if z/10 < zc+h/2 and z/10 > zc-h/2: # system unit is cm
+                        sketch.intersectWithSketchPlane([body])
                         onLayer = True
 
                 if onLayer:
