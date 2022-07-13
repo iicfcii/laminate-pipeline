@@ -19,8 +19,8 @@ def run(context):
         planes = root_comp.constructionPlanes
         meas_mgr = app.measureManager
 
-        z_offset = 0 # Z offset for the first layer
-        t_layers = [1,1,1,1,1]
+        z_offset = -0.49 # Z offset for the first layer
+        t_layers = [0.45,0.015,0.05,0.015,0.45]
 
         input, isCancelled = ui.inputBox(
             'Signed distance between\nthe bottom of your design\nto the xy plane in mm',

@@ -6,8 +6,8 @@ from foldable_robotics.layer import Layer
 from foldable_robotics.laminate import Laminate
 import matplotlib.pyplot as plt
 
-W_DEFAULT = 1
-CUT_THICKNESS = 0.1
+W_DEFAULT = 0.4
+CUT_THICKNESS = 0.01
 
 def bbox(line, w):
     dl = -CUT_THICKNESS # length offset to mask joint for cleaner cuts

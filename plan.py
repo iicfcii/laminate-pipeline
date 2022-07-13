@@ -13,25 +13,30 @@ import ezdxf
 import joint
 
 SMALL_DIM = 0.001
-CUT_THICKNESS = 0.1
+CUT_THICKNESS = 0.01
 CIRCLE_RESOLUTION = 5
 
 def device(comps_poly,comps_circle,joints,layers_comp,joint_dicts=joint.DICTS):
+    # Convert circles to polygons
+    for l in layers_comp.keys():
+        for comp in layers_comp[l]:
+            circles = []
+            for circle in comps_circle[comp][l]:
+                # HACK: Flip circle around y, bug may be related to the extrusion direction(0,0,-1)
+                center = (-list(circle[0])[0],list(circle[0])[1])
+                p = sg.Point(center).buffer(circle[1],resolution=CIRCLE_RESOLUTION)
+                circles.append(list(p.exterior.coords))
+            comps_poly[comp][l] = comps_poly[comp][l]+circles
+
     # Construct device
     device = []
     for l in layers_comp.keys():
         layer = sg.Polygon()
         for comp in layers_comp[l]:
             for p in comps_poly[comp][l]:
-                # TODO: Add logic to determine outer poly with bounding box
                 # NOTE: Some polygon union may fail.
                 # Dilate and erode fix the problem but not sure why
                 layer |= sg.Polygon(p).buffer(SMALL_DIM).buffer(-SMALL_DIM)
-            for circle in comps_circle[comp][l]:
-                # HACK Flip circle around y, bug may be related to the extrusion direction(0,0,-1)
-                center = (-list(circle[0])[0],list(circle[0])[1])
-                layer ^= sg.Point(center).buffer(circle[1],resolution=CIRCLE_RESOLUTION) # circles are cutout
-
         # Merge touching bodies
         layer = Layer(layer)
         layer = mfg.cleanup(layer,SMALL_DIM)
@@ -75,13 +80,18 @@ def device(comps_poly,comps_circle,joints,layers_comp,joint_dicts=joint.DICTS):
     # Cut to separate all bodies
     bodies_cut = []
     for l in layers_comp:
-        cut = sg.LineString()
+        cut = sg.Polygon()
         for comp in layers_comp[l]:
             for p in comps_poly[comp][l]:
                 poly = sg.Polygon(p)
-                cut |= poly.boundary
-        cut = cut.buffer(CUT_THICKNESS/2,join_style=sg.JOIN_STYLE.mitre)
-        bodies_cut.append(Layer(cut))
+                is_inner = any([poly.within(g) for g in device.layers[l].geoms])
+                if is_inner:
+                    # NOTE: Remove inner polygons completely. This should be desirable most of the time.
+                    cut |= poly
+                else:
+                    cut |= poly.boundary.buffer(CUT_THICKNESS/2,join_style=sg.JOIN_STYLE.mitre)
+        cut = Layer(cut)
+        bodies_cut.append(cut)
     bodies_cut = Laminate(*bodies_cut)
 
     # Mask to avoid cutting joints
@@ -135,11 +145,12 @@ def not_web_material(laminate,up):
     return not_web_material
 
 def jig_holes(x,y,w,h,jig_diameter,num_layers):
+    cres = 5 # independent circle res
     points = [] # jig holes
-    points.append(sg.Point(x-w/2,y-h/2).buffer(jig_diameter/2,resolution=CIRCLE_RESOLUTION))
-    points.append(sg.Point(x-w/2,y+h/2).buffer(jig_diameter/2,resolution=CIRCLE_RESOLUTION))
-    points.append(sg.Point(x+w/2,y-h/2).buffer(jig_diameter/2,resolution=CIRCLE_RESOLUTION))
-    points.append(sg.Point(x+w/2,y+h/2).buffer(jig_diameter/2,resolution=CIRCLE_RESOLUTION))
+    points.append(sg.Point(x-w/2,y-h/2).buffer(jig_diameter/2,resolution=cres))
+    points.append(sg.Point(x-w/2,y+h/2).buffer(jig_diameter/2,resolution=cres))
+    points.append(sg.Point(x+w/2,y-h/2).buffer(jig_diameter/2,resolution=cres))
+    points.append(sg.Point(x+w/2,y+h/2).buffer(jig_diameter/2,resolution=cres))
     points = Layer(*points)
     points = points.to_laminate(num_layers)
 
@@ -263,6 +274,9 @@ def cuts(device,jig_diameter=5,jig_hole_spacing=20, clearance=1):
 
     # Remove single layer cuts from the total cuts
     for rcl_mpg in release_cut_layers_mpg: release_cut -= rcl_mpg
+
+    # NOTE: single-layer cuts from different layers may overlap.
+    # Require manual merge to prioritize certain layer.
 
     # release_cut_layers_mpg[2].plot()
     # release_cut_layers[2].plot()
