@@ -84,7 +84,8 @@ def device(comps_poly,comps_circle,joints,layers_comp,joint_dicts=joint.DICTS):
         for comp in layers_comp[l]:
             for p in comps_poly[comp][l]:
                 poly = sg.Polygon(p)
-                is_inner = any([poly.within(g) for g in device.layers[l].geoms])
+                # Buffer outward a little to make sure that the polygon is really "inside".
+                is_inner = any([poly.buffer(CUT_THICKNESS/2,join_style=sg.JOIN_STYLE.mitre).within(g) for g in device.layers[l].geoms])
                 if is_inner:
                     # NOTE: Remove inner polygons completely. This should be desirable most of the time.
                     cut |= poly
