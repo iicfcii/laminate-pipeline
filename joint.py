@@ -22,20 +22,14 @@ def bbox(line, w):
 
     return Layer(bbox)
 
-# Material to be cut to form the joint
-def inv(jf, line, w=W_DEFAULT):
-    joint_block = jf(line,w=w)
-    sheet = bbox(line,w)
-    sheet = sheet.to_laminate(len(joint_block))
-
-    return sheet-joint_block
-
 # Plain 5 layer joint
 def plain5(line, w=W_DEFAULT):
     flex_layer = bbox(line,w)
     other_layer = Layer()
 
-    return Laminate(other_layer,other_layer,flex_layer,other_layer,other_layer)
+    joint_laminate = Laminate(other_layer,other_layer,flex_layer,other_layer,other_layer)
+    joint_laminate_inv = flex_layer.to_laminate(5)-joint_laminate
+    return joint_laminate,joint_laminate_inv
 
 def stamp5(line, w=W_DEFAULT):
     l3 = bbox(line,w)
@@ -85,17 +79,55 @@ def stamp5(line, w=W_DEFAULT):
     l1 = teeth(1)&l3
     l5 = teeth(-1)&l3
 
-    j = Laminate(l1,l1,l3,l5,l5)
-    # j.plot_layers()
-    # plt.show(block=True)
+    joint_laminate = Laminate(l1,l1,l3,l5,l5)
+    joint_laminate_inv = l3.to_laminate(5)-joint_laminate
+    return joint_laminate,joint_laminate_inv
 
-    return j
+def bend5(line, w=6+0.5*2+0.4, ds=0.5, t=0.4, j=W_DEFAULT, pad=2.5):
+    s = w-ds*2-t
+    line = np.array(line).reshape((2,2))
+    dir = line[1,:]-line[0,:]
+    l = np.linalg.norm(dir)
+    dir = dir/l
+    ang = np.arctan2(dir[1],dir[0])
+    center = (line[1,:]+line[0,:])/2
+
+    # Bounding polygon
+    bpg = bbox(line,j)
+    for c in [center,center+(l/2-pad)*dir,center-(l/2-pad)*dir]:
+        for rot in [ang+np.pi/2,ang-np.pi/2]:
+            p1 = c
+            p2 = c+(s/2+ds)*np.array([np.cos(rot),np.sin(rot)])
+            rib = Layer(sg.LineString([p1,p2]).buffer(t/2,cap_style=sg.CAP_STYLE.square))
+            bpg |= rib
+
+    # Flex layer
+    flex_layer = bbox(line,j)
+    for c in [center,center+(l/2-pad)*dir,center-(l/2-pad)*dir]:
+        for rot in [ang+np.pi/2,ang-np.pi/2]:
+            p1 = c
+            p2 = c+(s/2-t)*np.array([np.cos(rot),np.sin(rot)])
+            hole = Layer(sg.LineString([p1,p2]).buffer(t/2,cap_style=sg.CAP_STYLE.square))
+            flex_layer |= hole
+
+    # Hinge
+    hinge = bbox(line,j)
+    other_layer = flex_layer
+    other_layer ^= hinge
+
+    joint_laminate = Laminate(other_layer,other_layer,flex_layer,other_layer,other_layer)
+    joint_laminate_inv = bpg.to_laminate(5)-joint_laminate
+
+    return joint_laminate,joint_laminate_inv
 
 # Plain 1 layer joint
 # This basically makes sure joint at the layer is connected
 def plain1(line, w=W_DEFAULT):
     flex_layer = bbox(line,w)
-    return Laminate(flex_layer)
+
+    joint_laminate = Laminate(flex_layer)
+    joint_laminate_inv = flex_layer.to_laminate(1)-joint_laminate
+    return joint_laminate,joint_laminate_inv
 
 # Dashed 1 layer joint
 # Creates dashed cuts along the joint for 1 layer design
@@ -126,11 +158,14 @@ def dashed1(line, w=W_DEFAULT, style=(1,1), pad=2):
     cuts = cuts.buffer(t/2,cap_style=sg.CAP_STYLE.square)
     cuts = Layer(cuts)
 
-    return Laminate(flex_layer-cuts)
+    joint_laminate = Laminate(flex_layer-cuts)
+    joint_laminate_inv = flex_layer.to_laminate(1)-joint_laminate
+    return joint_laminate,joint_laminate_inv
 
 DICTS = {
     'plain5': plain5,
     'stamp5': stamp5,
+    'bend5': bend5,
     'plain1': plain1,
     'dashed1': dashed1
 }

@@ -62,15 +62,15 @@ def device(comps_poly,comps_circle,joints,layers_comp,joint_dicts=joint.DICTS):
     for j in joints:
         for line in j['lines']:
             jf = joint_fun(j)
-            joint_block = joint.inv(jf,line)
-            start_layer = j['layer']-int(len(joint_block)/2)
+            joint_laminate = jf(line)[1]
+            start_layer = j['layer']-int(len(joint_laminate)/2)
             layers = []
             for i in range(len(device)):
                 if i < start_layer:
                     layers.append(Layer())
                 else:
-                    if i-start_layer < len(joint_block):
-                        layers.append(joint_block[i-start_layer])
+                    if i-start_layer < len(joint_laminate):
+                        layers.append(joint_laminate[i-start_layer])
                     else:
                         layers.append(Layer())
             laminate = Laminate(*layers)
@@ -100,15 +100,15 @@ def device(comps_poly,comps_circle,joints,layers_comp,joint_dicts=joint.DICTS):
     for j in joints:
         for line in j['lines']:
             jf = joint_fun(j)
-            joint_block = jf(line)
-            start_layer = j['layer']-int(len(joint_block)/2)
+            joint_laminate = jf(line)[0]
+            start_layer = j['layer']-int(len(joint_laminate)/2)
             layers = []
             for i in range(len(device)):
                 if i < start_layer:
                     layers.append(Layer())
                 else:
-                    if i-start_layer < len(joint_block):
-                        layers.append(joint_block[i-start_layer])
+                    if i-start_layer < len(joint_laminate):
+                        layers.append(joint_laminate[i-start_layer])
                     else:
                         layers.append(Layer())
             laminate = Laminate(*layers)

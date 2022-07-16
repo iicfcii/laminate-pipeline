@@ -117,11 +117,8 @@ def run(context):
                         *joint.jointMotion.rotationAxisVector.asArray() # unit vector
                     ])
                 except:
-                    error_joints.append(joint.name)
+                    ui.messageBox('{}\n{}'.format(joint.name,traceback.format_exc()))
                     continue
-
-        if len(error_joints) > 0:
-            ui.messageBox('Following joints have error: {}'.format(', '.join(error_joints)))
 
         with open(os.path.join(path,'rev_joints.csv'), 'w', newline='') as f:
             writer = csv.writer(f)
