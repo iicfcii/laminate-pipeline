@@ -3,6 +3,10 @@
 
 import os, csv
 import adsk.core, adsk.fusion, adsk.cam, traceback
+from adsk.core import Vector3D
+
+def format_name(s):
+    return s.replace(':','-').replace('+','-')
 
 def run(context):
     ui = None
@@ -13,9 +17,10 @@ def run(context):
         root_comp = design.rootComponent
         sketches = root_comp.sketches
         planes = root_comp.constructionPlanes
+        meas_mgr = app.measureManager
 
-        z_offset = -0.4595 # Z offset for the first layer
-        t_layers = [0.4191,0.015,0.0508,0.015,0.4191]
+        z_offset = -0.49 # Z offset for the first layer
+        t_layers = [0.45,0.015,0.05,0.015,0.45]
 
         input, isCancelled = ui.inputBox(
             'Signed distance between\nthe bottom of your design\nto the xy plane in mm',
@@ -56,22 +61,28 @@ def run(context):
                 plane_input.setByOffset(root_comp.xYConstructionPlane, adsk.core.ValueInput.createByReal(z/10))
                 plane = planes.add(plane_input)
                 sketch = sketches.add(plane)
-                sketch.name = occ.component.name
+                sketch.name = 'tmp'
                 # ui.messageBox('{} {} {}'.format(*sketch.yDirection.asArray()))
 
                 onLayer = False
-                for body in occ.component.bRepBodies:
-                    if z/10 < body.boundingBox.maxPoint.z and z/10 > body.boundingBox.minPoint.z: # system unit is cm
-                        sketch.intersectWithSketchPlane([body.createForAssemblyContext(occ)])
+                for body in occ.bRepBodies:
+                    # Measure bounding box aligned to world x y z
+                    bbox = meas_mgr.getOrientedBoundingBox(body,Vector3D.create(1,0,0),Vector3D.create(0,1,0))
+                    zc = bbox.centerPoint.z
+                    h = bbox.height
+
+                    if z/10 < zc+h/2 and z/10 > zc-h/2: # system unit is cm
+                        sketch.intersectWithSketchPlane([body])
                         onLayer = True
 
                 if onLayer:
-                    layers[i].append(occ.component.name)
-                    sketch.saveAsDXF(os.path.join(path,'{:d}_{}.dxf'.format(i, occ.component.name)))
+                    name = format_name(occ.fullPathName)
+                    layers[i].append(name)
+                    sketch.saveAsDXF(os.path.join(path,'{:d}_{}.dxf'.format(i, name)))
 
                 sketch.deleteMe()
                 plane.deleteMe()
-                # return
+
             z += t/2 # Move to start of next layer
 
         with open(os.path.join(path,'layers.csv'), 'w', newline='') as f:
@@ -81,24 +92,33 @@ def run(context):
                 for comp in layers[l]:
                     writer.writerow([l,comp,sum(t_layers[0:l])+z_offset]) # Save layer z start info
 
-        all_joints = [*root_comp.allAsBuiltJoints,*root_comp.allJoints]
+        # NOTE: Only AsBuiltJoint supported
+        all_joints = [*root_comp.allAsBuiltJoints]
         rev_joints = []
         error_joints = []
         for joint in all_joints[:]:
             if joint.jointMotion.jointType == adsk.fusion.JointTypes.RevoluteJointType:
                 try:
+                    def full_name(occ):
+                        if joint.assemblyContext is None:
+                            return format_name(occ.fullPathName)
+                        else:
+                            return format_name(joint.assemblyContext.fullPathName+'+'+occ.fullPathName)
+
+                    origin = joint.geometry.origin
+                    if joint.assemblyContext is not None:
+                        tf = joint.assemblyContext.transform2
+                        origin.transformBy(tf)
+
                     rev_joints.append([
                         joint.name,
-                        joint.occurrenceOne.component.name,joint.occurrenceTwo.component.name,
-                        *[val*10 for val in joint.geometry.origin.asArray()], # convert to mm
+                        full_name(joint.occurrenceOne),full_name(joint.occurrenceTwo),
+                        *[val*10 for val in origin.asArray()], # convert to mm
                         *joint.jointMotion.rotationAxisVector.asArray() # unit vector
                     ])
                 except:
-                    error_joints.append(joint.name)
+                    ui.messageBox('{}\n{}'.format(joint.name,traceback.format_exc()))
                     continue
-
-        if len(error_joints) > 0:
-            ui.messageBox('Following joints have error: {}'.format(', '.join(error_joints)))
 
         with open(os.path.join(path,'rev_joints.csv'), 'w', newline='') as f:
             writer = csv.writer(f)
