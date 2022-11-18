@@ -120,6 +120,15 @@ def device(comps_poly,comps_circle,joints,layers_comp,joint_dicts=joint.DICTS):
     # TODO: Clean unnecessary adhesive
     return device, joints_cut, bodies_cut
 
+def twin(device):
+    bb = device.bounding_box_coords()
+    dy = np.abs(bb[0][1]-bb[1][1])+3
+    device_m = Laminate(*[safe_translate_layer(l, 0, dy) for l in device])
+    device_m = device_m.scale(yfact=-1,origin='center')
+    device = device.unary_union(device_m)
+
+    return device
+
 def not_web_material(laminate,up):
     num_layers = len(laminate)
     is_adhesive = [i%2 == 1 for i in range(num_layers)] # Assume alternative adhesive and first and last are not adhesive
