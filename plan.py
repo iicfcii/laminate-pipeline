@@ -299,23 +299,29 @@ def cuts(device, jig_diameter=5, jig_hole_spacing=20, clearance=1):
             separate(g.boundary)
     release_cut = Layer(sg.MultiLineString(release_cut))
 
-    release_cut_layers = []  # Cuts that only happens on a single layer
+    release_cut_layers = []  # Cuts that need special care
     release_cut_layers_mpg = []
     for j in range(num_layers):
         material_cut_n = material_cut[j]
         for i in range(num_layers):
-            if i == j:
-                continue
-            material_cut_n -= material_cut[i]
+            if j == 2:
+                # Select specific layer
+                # e.g. thinnest layer excluding adhesive
+                if i < j:
+                    # i != j for cuts happened only here
+                    # i < j for cuts happened here and above
+                    material_cut_n -= material_cut[i]
+            else:
+                # Get no cuts
+                material_cut_n -= material_cut[i]
 
+        # clean small regions and very thin lines
         material_cut_n.geoms = [
             g for g in material_cut_n.geoms
-            if g.area > (CUT_THICKNESS / 2)**2]
-        # clean very thin lines
+            if g.area > (CUT_THICKNESS * 1.1)**2]
         material_cut_n = material_cut_n.erode(CUT_THICKNESS / 10) \
             .dilate(CUT_THICKNESS / 10)
-        # Expand a bit to make sure all-the-way cuts won't affect single-layer
-        # cut
+        # Expand a bit to make sure all-the-way cuts won't affect them
         material_cut_n = material_cut_n.dilate(0.8)
 
         material_cut_n_mpg = Layer(sg.MultiPolygon(material_cut_n.geoms))
@@ -327,11 +333,11 @@ def cuts(device, jig_diameter=5, jig_hole_spacing=20, clearance=1):
     release_cut_layers = Laminate(*release_cut_layers)
     release_cut_layers_mpg = Laminate(*release_cut_layers_mpg)
 
-    # Remove single layer cuts from the total cuts
+    # Remove special layer cuts from the total cuts
     for rcl_mpg in release_cut_layers_mpg:
         release_cut -= rcl_mpg
 
-    # NOTE: single-layer cuts from different layers may overlap.
+    # NOTE: special cuts from different layers may overlap.
     # Require manual merge to prioritize certain layer.
 
     # release_cut_layers_mpg[2].plot()
@@ -366,7 +372,7 @@ def export(path, layers_cut, release_cut, release_cut_layers, plot=False):
     layers_cut_final.export_dxf(os.path.join(
         path, '{}_layers'.format(folder_name)))
 
-    # Different color for all-the-way cuts and signle-layer cuts
+    # Different color for all-the-way cuts and special cuts
     doc = ezdxf.new('R2010')
     msp = doc.modelspace()
     c = 0
