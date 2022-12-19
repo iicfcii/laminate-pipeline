@@ -309,7 +309,7 @@ def cuts(device, jig_diameter=5, jig_hole_spacing=20, clearance=1):
                 # e.g. thinnest layer excluding adhesive
                 if i < j:
                     # i != j for cuts happened only here
-                    # i < j for cuts happened here and above
+                    # i < j for cuts happened only here and above
                     material_cut_n -= material_cut[i]
             else:
                 # Get no cuts

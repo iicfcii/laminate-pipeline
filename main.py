@@ -6,8 +6,8 @@ import sys
 
 if __name__ == '__main__':
     path = sys.argv[1]
-    plot = sys.argv[2] == '-p' if len(sys.argv) > 2 else False
-    twin = sys.argv[3] == '-t' if len(sys.argv) > 3 else False
+    plot = '-p' in sys.argv
+    twin = '-t' in sys.argv
 
     polys, circles, joints, layers = data.read(path)
 
