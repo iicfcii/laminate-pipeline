@@ -247,13 +247,14 @@ def safe_translate_layer(layer, dx, dy):
         g = sa.translate(geom, dx, dy)
         try:
             l |= g
-        except se.TopologicalError as e:
-            print('Please check the cuts. \
-                Tried to resolve exception by simplifying the geom a bit.')
+        except se.GEOSException as e:
+            print(
+                'Please check the cuts. ' +
+                'Tried to resolve exception by simplifying the geom a bit.')
             if not l.is_valid:
-                l = l.simplify(0.0001)
+                l = l.simplify(0.001)
             if not g.is_valid:
-                g = g.simplify(0.0001)
+                g = g.simplify(0.001)
             l |= g
     return Layer(l)
 
