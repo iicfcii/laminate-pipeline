@@ -38,10 +38,29 @@ def device(comps_poly, comps_circle, joints,
     for l in layers_comp.keys():
         layer = sg.Polygon()
         for comp in layers_comp[l]:
-            for p in comps_poly[comp][l]:
+            ps = [sg.Polygon(p) for p in comps_poly[comp][l]]
+
+            # Count how many times each polygon is within another polygon
+            within_cnts = [
+                np.sum([
+                    p.buffer(
+                        CUT_THICKNESS / 2,
+                        join_style=sg.JOIN_STYLE.mitre).within(pp)
+                    for pp in ps])
+                for p in ps]
+            idx_order = np.argsort(within_cnts)
+
+            for i in idx_order:
+                p = ps[i]
+                cnts = within_cnts[i]
                 # NOTE: Some polygon union may fail.
                 # Dilate and erode fix the problem but not sure why
-                layer |= sg.Polygon(p).buffer(SMALL_DIM).buffer(-SMALL_DIM)
+                if cnts % 2 != 0:
+                    # An odd counts (mostly 1) means remove
+                    layer -= sg.Polygon(p).buffer(SMALL_DIM).buffer(-SMALL_DIM)
+                else:
+                    # An even counts (mostly 0) means add
+                    layer |= sg.Polygon(p).buffer(SMALL_DIM).buffer(-SMALL_DIM)
         # Merge touching bodies
         layer = Layer(layer)
         layer = mfg.cleanup(layer, SMALL_DIM)
@@ -292,7 +311,7 @@ def cuts(device, jig_diameter=5, jig_hole_spacing=20, clearance=1):
             release_cut.append(sg.LineString([p1, p2]))
 
     for g in release_cut_scrap[0].geoms:
-        if g.boundary.type == 'MultiLineString':
+        if g.boundary.geom_type == 'MultiLineString':
             for ls in g.boundary.geoms:
                 separate(ls)
         else:
