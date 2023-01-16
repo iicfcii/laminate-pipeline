@@ -243,19 +243,30 @@ def safe_translate_layer(layer, dx, dy):
     # instead of not giving any info and losing features
 
     l = sg.Polygon()
-    for geom in layer.geoms:
-        g = sa.translate(geom, dx, dy)
-        try:
-            l |= g
-        except se.GEOSException as e:
-            print(
-                'Please check the cuts. ' +
-                'Tried to resolve exception by simplifying the geom a bit.')
-            if not l.is_valid:
-                l = l.simplify(0.001)
-            if not g.is_valid:
-                g = g.simplify(0.001)
-            l |= g
+    for g in layer.geoms:
+        gt = sa.translate(g, dx, dy)
+        if not gt.is_valid:
+            gts = gt.simplify(0.5)
+
+            lg = Layer(g)
+            lgt = Layer(gt)
+            lgts = Layer(gts)
+            plt.figure(
+                'Encountered an invalid geometry. Please check the fix. ')
+            plt.subplot(311)
+            lg.plot()
+            plt.title('Original')
+            plt.subplot(312)
+            lgt.plot()
+            plt.title('Translated')
+            plt.subplot(313)
+            lgts.plot()
+            plt.title('Translated & Fixed')
+            plt.show(block=True)
+
+            gt = gts
+            assert gt.is_valid
+        l |= gt
     return Layer(l)
 
 

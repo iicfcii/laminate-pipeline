@@ -6,7 +6,7 @@ from foldable_robotics.layer import Layer
 from foldable_robotics.laminate import Laminate
 import matplotlib.pyplot as plt
 
-W_DEFAULT = 0.4
+W_DEFAULT = 0.6
 CUT_THICKNESS = 0.01
 
 
