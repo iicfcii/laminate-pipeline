@@ -154,8 +154,10 @@ def device(comps_poly, comps_circle, joints,
 def twin(device):
     bb = device.bounding_box_coords()
     dy = np.abs(bb[0][1] - bb[1][1]) + 3
-    device_m = Laminate(*[safe_translate_layer(l, 0, dy) for l in device])
-    device_m = device_m.scale(yfact=-1, origin='center')
+    device_m = Laminate(*[
+        safe_translate_layer(l, 0, dy, mirror=True)
+        for l in device
+    ])
     device = device.unary_union(device_m)
 
     return device
@@ -238,34 +240,46 @@ def labels(x, y, w, h, jig_diameter, num_layers,
     return labels
 
 
-def safe_translate_layer(layer, dx, dy):
+def safe_translate_layer(layer, dx, dy, mirror=False):
     # This translate function will print out exception and try to reolve it
     # instead of not giving any info and losing features
 
+    (x1, y1), (x2, y2) = layer.bounding_box_coords()
     l = sg.Polygon()
     for g in layer.geoms:
-        gt = sa.translate(g, dx, dy)
+        if mirror:
+            gt = sa.scale(
+                g, yfact=-1,
+                origin=((x1 + x2) / 2, (y1 + y2) / 2, 0)
+            )
+        else:
+            gt = g
+        gt = sa.translate(gt, dx, dy)
         if not gt.is_valid:
-            gts = gt.simplify(0.5)
+            gts = gt.simplify(0.001)
+            gts = gts.buffer(0)
+            print(
+                'Encountered an invalid geometry. ' +
+                'Please check the automatic fix. '
+            )
 
-            lg = Layer(g)
-            lgt = Layer(gt)
-            lgts = Layer(gts)
-            plt.figure(
-                'Encountered an invalid geometry. Please check the fix. ')
-            plt.subplot(311)
-            lg.plot()
-            plt.title('Original')
-            plt.subplot(312)
-            lgt.plot()
-            plt.title('Translated')
-            plt.subplot(313)
-            lgts.plot()
-            plt.title('Translated & Fixed')
-            plt.show(block=True)
+            # lg = Layer(g)
+            # lgt = Layer(gt)
+            # lgts = Layer(gts)
+            # plt.figure('Auto fix')
+            # plt.subplot(311)
+            # lg.plot()
+            # plt.title('Original')
+            # plt.subplot(312)
+            # lgt.plot()
+            # plt.title('Translated')
+            # plt.subplot(313)
+            # lgts.plot()
+            # plt.title('Translated & Fixed')
+            # plt.show(block=True)
 
             gt = gts
-            assert gt.is_valid
+            assert gt.is_valid, 'Simplify does not make it valid'
         l |= gt
     return Layer(l)
 
