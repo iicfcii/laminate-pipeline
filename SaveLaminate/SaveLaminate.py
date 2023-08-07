@@ -26,12 +26,13 @@ def run(context):
         meas_mgr = app.measureManager
 
         z_offset = 0  # Z offset for the first layer
-        t_layers = [0.45, 0.015, 0.18, 0.015, 0.72]
+        # t_layers = [0.45, 0.015, 0.18, 0.015, 0.45]
+        t_layers = [0.45, 0.015, 0.1, 0.015, 0.72]
 
         input, isCancelled = ui.inputBox(
-            'Signed distance between\n \
-            the bottom of your design\n \
-            to the xy plane in mm',
+            'Signed distance between\n'
+            'the bottom of your design\n'
+            'to the xy plane in mm',
             'Z offset',
             str(z_offset)
         )
@@ -40,8 +41,8 @@ def run(context):
         z_offset = float(input)
 
         input, isCancelled = ui.inputBox(
-            'Layer thicknesses in mm separated by ","\n \
-            For a single layer design, just enter one number.',
+            'Layer thicknesses in mm separated by ","\n'
+            'For a single layer design, just enter one number.',
             'Layer thicknesses',
             ','.join([str(t) for t in t_layers])
         )

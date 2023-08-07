@@ -10,11 +10,10 @@ import foldable_robotics.manufacturing as mfg
 import os
 import sys
 import ezdxf
-
 import joint
 
-SMALL_DIM = 0.001
-CUT_THICKNESS = 0.01
+CUT_THICKNESS = joint.CUT_THICKNESS
+SMALL_DIM = joint.CUT_THICKNESS / 5
 CIRCLE_RESOLUTION = 5
 
 
@@ -153,7 +152,7 @@ def device(comps_poly, comps_circle, joints,
 
 def twin(device):
     bb = device.bounding_box_coords()
-    dy = np.abs(bb[0][1] - bb[1][1]) + 3
+    dy = np.abs(bb[0][1] - bb[1][1]) + 1
     device_m = Laminate(*[
         safe_translate_layer(l, 0, dy, mirror=True)
         for l in device
@@ -352,20 +351,19 @@ def cuts(device, jig_diameter=5, jig_hole_spacing=20, clearance=1):
             if j == 2:
                 # Select specific layer
                 # e.g. thinnest layer excluding adhesive
-                if i < j:
+                if i > j:
                     # i != j for cuts happened only here
-                    # i < j for cuts happened only here and above
-                    material_cut_n -= material_cut[i]
+                    # i > j for cuts without cover
+                    material_cut_n -= material_cut[i].dilate(SMALL_DIM)
             else:
                 # Get no cuts
-                material_cut_n -= material_cut[i]
+                material_cut_n -= material_cut[i].dilate(SMALL_DIM)
 
         # clean small regions and very thin lines
         material_cut_n.geoms = [
             g for g in material_cut_n.geoms
             if g.area > (CUT_THICKNESS * 1.1)**2]
-        material_cut_n = material_cut_n.erode(CUT_THICKNESS / 10) \
-            .dilate(CUT_THICKNESS / 10)
+        material_cut_n = material_cut_n.erode(SMALL_DIM).dilate(SMALL_DIM)
         # Expand a bit to make sure all-the-way cuts won't affect them
         material_cut_n = material_cut_n.dilate(0.8)
 
@@ -385,10 +383,10 @@ def cuts(device, jig_diameter=5, jig_hole_spacing=20, clearance=1):
     # NOTE: special cuts from different layers may overlap.
     # Require manual merge to prioritize certain layer.
 
-    # release_cut_layers_mpg[2].plot()
-    # release_cut_layers[2].plot()
-    # release_cut.plot()
-    # plt.show(block=True)
+    release_cut_layers_mpg[2].plot()
+    release_cut_layers[2].plot()
+    release_cut.plot()
+    plt.show(block=True)
 
     return layers_cut, release_cut, release_cut_layers
 
@@ -425,6 +423,8 @@ def export(path, layers_cut, release_cut, release_cut_layers, plot=False):
         msp.add_lwpolyline(line, dxfattribs={'color': c})
     c += 1
     for l in release_cut_layers:
+        if len(l.get_paths()) == 0:
+            continue
         for line in l.get_paths():
             msp.add_lwpolyline(line, dxfattribs={'color': c})
         c += 1
