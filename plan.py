@@ -152,9 +152,13 @@ def device(comps_poly, comps_circle, joints,
 
 def twin(device):
     bb = device.bounding_box_coords()
+    mirror_center = [
+        (bb[0][0] + bb[1][0]) / 2,
+        (bb[0][1] + bb[1][1]) / 2
+    ]
     dy = np.abs(bb[0][1] - bb[1][1]) + 1
     device_m = Laminate(*[
-        safe_translate_layer(l, 0, dy, mirror=True)
+        safe_translate_layer(l, 0, dy, mirror_first=mirror_center)
         for l in device
     ])
     device = device.unary_union(device_m)
@@ -239,17 +243,16 @@ def labels(x, y, w, h, jig_diameter, num_layers,
     return labels
 
 
-def safe_translate_layer(layer, dx, dy, mirror=False):
+def safe_translate_layer(layer, dx, dy, mirror_first=None):
     # This translate function will print out exception and try to reolve it
     # instead of not giving any info and losing features
 
-    (x1, y1), (x2, y2) = layer.bounding_box_coords()
     l = sg.Polygon()
     for g in layer.geoms:
-        if mirror:
+        if mirror_first is not None:
             gt = sa.scale(
                 g, yfact=-1,
-                origin=((x1 + x2) / 2, (y1 + y2) / 2, 0)
+                origin=(mirror_first[0], mirror_first[1], 0)
             )
         else:
             gt = g
@@ -383,10 +386,10 @@ def cuts(device, jig_diameter=5, jig_hole_spacing=20, clearance=1):
     # NOTE: special cuts from different layers may overlap.
     # Require manual merge to prioritize certain layer.
 
-    release_cut_layers_mpg[2].plot()
-    release_cut_layers[2].plot()
-    release_cut.plot()
-    plt.show(block=True)
+    # release_cut_layers_mpg[2].plot()
+    # release_cut_layers[2].plot()
+    # release_cut.plot()
+    # plt.show(block=True)
 
     return layers_cut, release_cut, release_cut_layers
 
