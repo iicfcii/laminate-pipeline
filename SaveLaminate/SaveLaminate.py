@@ -26,8 +26,9 @@ def run(context):
         meas_mgr = app.measureManager
 
         z_offset = 0  # Z offset for the first layer
+        t_layers = [0.45, 0.015, 0.05, 0.015, 0.45]
         # t_layers = [0.45, 0.015, 0.18, 0.015, 0.45]
-        t_layers = [0.45, 0.015, 0.1, 0.015, 0.72]
+        # t_layers = [0.45, 0.015, 0.1, 0.015, 0.72]
 
         input, isCancelled = ui.inputBox(
             'Signed distance between\n'
