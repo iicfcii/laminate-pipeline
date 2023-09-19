@@ -354,7 +354,7 @@ def cuts(device, jig_diameter=5, jig_hole_spacing=20, clearance=1):
             if j == 2:
                 # Select specific layer
                 # e.g. thinnest layer excluding adhesive
-                if i > j:
+                if i != j:
                     # i != j for cuts happened only here
                     # i > j for cuts without cover
                     material_cut_n -= material_cut[i].dilate(SMALL_DIM)
